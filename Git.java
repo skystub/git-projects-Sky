@@ -1,11 +1,10 @@
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 
 public class Git {
     public static void main(String[] args) throws IOException {
         initRepo("/Users/skystubbeman/Documents/HTCS_Projects");
-        testForGitRepo("/Users/skystubbeman/Documents/HTCS_Projects");
+        // testForGitRepo("/Users/skystubbeman/Documents/HTCS_Projects");
         // deleteGitRepo("/Users/skystubbeman/Documents/HTCS_Projects");
     }
 
