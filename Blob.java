@@ -85,13 +85,12 @@ public class Blob {
                 }
 
             }
-
             inputStream.close();
             outputStream.close();
         }
         
         BufferedWriter bw = new BufferedWriter (new FileWriter(gitRepoPath + "/index", true));
-        File filePointer = new File(filePath); //huh?
+        File filePointer = new File(filePath);
         bw.write(name + " " + filePointer.getName() + "\n"); 
         bw.close();
     }
