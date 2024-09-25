@@ -9,10 +9,13 @@ import java.io.FileOutputStream;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.BufferedOutputStream;
+import java.util.zip.Deflater;
+
 
 public class Blob {
+    public static boolean compressionEnabled;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
-        // System.out.println(createUniqueFileName("/Users/skystubbeman/Desktop/helloWorld.txt"));
+        compressionEnabled = false;
         createNewBlob("/Users/skystubbeman/Desktop/tester.txt","/Users/skystubbeman/Documents/HTCS_Projects/git");
     }
 
@@ -61,7 +64,7 @@ public class Blob {
             while ((i = inputStream.read()) != -1){
                 outputStream.write(i);
             }
-            
+
             inputStream.close();
             outputStream.close();
         }
@@ -70,5 +73,9 @@ public class Blob {
         File filePointer = new File(filePath); //huh?
         bw.write(name + " " + filePointer.getName() + "\n"); 
         bw.close();
+    }
+
+    public static void compressBlob(){
+       
     }
 }
