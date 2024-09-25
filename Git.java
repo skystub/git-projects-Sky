@@ -3,7 +3,7 @@ import java.io.IOException;
 
 public class Git {
     public static void main(String[] args) throws IOException {
-        String testPath = "/Users/skystubbeman/Documents/HTCS_Projects";
+        String testPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky";
         initRepo(testPath);
         // GitRepoTester.testForGitRepo(testPath);
         // GitRepoTester.deleteGitRepo(testPath);

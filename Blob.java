@@ -16,8 +16,8 @@ import java.io.ByteArrayOutputStream;
 public class Blob {
     public static boolean compressionEnabled;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
-        compressionEnabled = false;
-        createNewBlob("/Users/skystubbeman/Desktop/tester.txt","/Users/skystubbeman/Documents/HTCS_Projects/git");
+        compressionEnabled = true;
+        createNewBlob("/Users/skystubbeman/Desktop/tester.txt","/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git");
     }
 
     public static String createUniqueFileName(String path)
@@ -27,24 +27,46 @@ public class Blob {
         FileInputStream in = new FileInputStream(file);
         BufferedInputStream br = new BufferedInputStream(in);
         MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
-        byte[] byteArr = new byte[8192];
-        int length = br.read(byteArr);
 
-        while (length != -1) {
-            sha1Digest.update(byteArr, 0, length);
-            length = br.read(byteArr);
+        byte[] inputBytes = br.readAllBytes();
+        byte[] endingBytes;
+
+        in.close();
+        br.close();
+
+        if (compressionEnabled){
+            endingBytes = compressBlob(inputBytes);
         }
+        else{
+            endingBytes = inputBytes;
+        }
+       
+        sha1Digest.update(endingBytes);
         byte[] hash = sha1Digest.digest();
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < hash.length; i++) {
             sb.append(String.format("%02x", hash[i]));
         }
-
-        in.close();
-        br.close();
-
+        System.out.println(sb.toString());
         return sb.toString();
+    }
+
+    public static byte[] compressBlob(byte[] inputBytes) throws IOException{
+        Deflater deflater = new Deflater();
+        deflater.setInput(inputBytes);
+        deflater.finish();
+
+        byte[] output = new byte[inputBytes.length * 2];
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        while (!deflater.finished()){
+            int num = deflater.deflate(output);
+            outputStream.write(output, 0, num);
+        }
+        byte[] endingBytes;
+        endingBytes = outputStream.toByteArray();
+        outputStream.close();
+        return endingBytes;
     }
 
     public static void createNewBlob(String filePath, String gitRepoPath) throws FileNotFoundException, NoSuchAlgorithmException, IOException{
@@ -55,6 +77,7 @@ public class Blob {
         if (!check){
             System.out.println("blob already exists");
         }
+
         else{
             BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(filePath));
             BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file));
@@ -62,20 +85,7 @@ public class Blob {
             if(compressionEnabled){
                 byte[] inputBytes = inputStream.readAllBytes();
                 byte[] endingBytes;
-
-                Deflater deflater = new Deflater();
-                deflater.setInput(inputBytes);
-                deflater.finish();
-    
-                byte[] output = new byte[inputBytes.length * 2];
-                ByteArrayOutputStream outputSt = new ByteArrayOutputStream();
-                while (!deflater.finished()){
-                    int num = deflater.deflate(output);
-                    outputSt.write(output, 0, num);
-                }
-                endingBytes = outputSt.toByteArray();
-                outputSt.close();
-
+                endingBytes = compressBlob(inputBytes);
                 outputStream.write(endingBytes);
             }
             else{
@@ -83,7 +93,6 @@ public class Blob {
                 while ((i = inputStream.read()) != -1){
                     outputStream.write(i);
                 }
-
             }
             inputStream.close();
             outputStream.close();
@@ -94,5 +103,4 @@ public class Blob {
         bw.write(name + " " + filePointer.getName() + "\n"); 
         bw.close();
     }
-
 }

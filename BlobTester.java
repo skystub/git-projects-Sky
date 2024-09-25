@@ -8,7 +8,7 @@ import java.io.BufferedWriter;
 
 public class BlobTester {
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
-        blobValidation("/Users/skystubbeman/Documents/HTCS_Projects/git", "hello world and everyone in it!", "88d9814d5c99271752f74fae7f363230a68e06b7");
+        blobValidation("/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git", "hello world and everyone in it!", "88d9814d5c99271752f74fae7f363230a68e06b7");
     }
     public static void blobValidation(String gitPath, String content, String correctHash) throws IOException, NoSuchAlgorithmException{
         File file1 = new File("../../../Desktop", "test.txt");
