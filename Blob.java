@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 public class Blob {
     public static boolean compressionEnabled;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
-        compressionEnabled = true;
+        compressionEnabled = false;
         createNewBlob("/Users/skystubbeman/Desktop/tester.txt","/Users/skystubbeman/Documents/HTCS_Projects/git");
     }
 
@@ -27,38 +27,22 @@ public class Blob {
         FileInputStream in = new FileInputStream(file);
         BufferedInputStream br = new BufferedInputStream(in);
         MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
+        byte[] byteArr = new byte[8192];
+        int length = br.read(byteArr);
 
-        byte[] inputBytes = br.readAllBytes();
-        byte[] endingBytes;
-
-        in.close();
-        br.close();
-
-        if(compressionEnabled){
-            Deflater deflater = new Deflater();
-            deflater.setInput(inputBytes);
-            deflater.finish();
-
-            byte[] output = new byte[inputBytes.length * 2];
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            while (!deflater.finished()){
-                int num = deflater.deflate(output);
-                outputStream.write(output, 0, num);
-            }
-            endingBytes = outputStream.toByteArray();
-            outputStream.close();
+        while (length != -1) {
+            sha1Digest.update(byteArr, 0, length);
+            length = br.read(byteArr);
         }
-        else{
-           endingBytes = inputBytes;
-        }
-
-        sha1Digest.update(endingBytes);
         byte[] hash = sha1Digest.digest();
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < hash.length; i++) {
             sb.append(String.format("%02x", hash[i]));
         }
+
+        in.close();
+        br.close();
 
         return sb.toString();
     }
@@ -74,10 +58,32 @@ public class Blob {
         else{
             BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(filePath));
             BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file));
-           
-            int i;
-            while ((i = inputStream.read()) != -1){
-                outputStream.write(i);
+
+            if(compressionEnabled){
+                byte[] inputBytes = inputStream.readAllBytes();
+                byte[] endingBytes;
+
+                Deflater deflater = new Deflater();
+                deflater.setInput(inputBytes);
+                deflater.finish();
+    
+                byte[] output = new byte[inputBytes.length * 2];
+                ByteArrayOutputStream outputSt = new ByteArrayOutputStream();
+                while (!deflater.finished()){
+                    int num = deflater.deflate(output);
+                    outputSt.write(output, 0, num);
+                }
+                endingBytes = outputSt.toByteArray();
+                outputSt.close();
+
+                outputStream.write(endingBytes);
+            }
+            else{
+                int i;
+                while ((i = inputStream.read()) != -1){
+                    outputStream.write(i);
+                }
+
             }
 
             inputStream.close();
