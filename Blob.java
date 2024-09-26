@@ -1,23 +1,28 @@
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.io.FileOutputStream;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.BufferedOutputStream;
 import java.util.zip.Deflater;
-import java.io.ByteArrayOutputStream;
 
 
 public class Blob {
     public static boolean compressionEnabled;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
         compressionEnabled = true;
-        createNewBlob("/Users/skystubbeman/Desktop/tester.txt","/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git");
+        String gitRepoPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
+        createNewBlob("/Users/skystubbeman/Desktop/tester.txt", gitRepoPath);
     }
 
     public static String createUniqueFileName(String path)
@@ -102,5 +107,13 @@ public class Blob {
         File filePointer = new File(filePath);
         bw.write(name + " " + filePointer.getName() + "\n"); 
         bw.close();
+    }
+
+
+    // Created for file updating process
+    private static void updateIndex(String gitRepoPath, String type, String hash, String name) throws IOException {
+        Path indexPath = Paths.get(gitRepoPath, "index");
+        String entry = type + " " + hash + " " + name + "\n";
+        Files.write(indexPath, entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 }
