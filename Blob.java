@@ -110,6 +110,24 @@ public class Blob {
     }
 
 
+    // This is the method for creating anew tree recursively
+    public static void createNewTree(String dirPath, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
+        File dir = new File(dirPath); 
+        String treeName = createUniqueFileName(dirPath);
+        updateIndex(gitRepoPath, "tree", treeName, dir.getName());
+         File[] files = dir.listFiles();
+          if (files != null) {
+             for (File file : files) { 
+                if (file.isFile()) { 
+                    createNewBlob(file.getAbsolutePath(), gitRepoPath); 
+                } 
+                else if (file.isDirectory()) {
+                    createNewTree(file.getAbsolutePath(), gitRepoPath); 
+                } 
+            } 
+        } 
+    }
+    
     // Created for file updating process
     private static void updateIndex(String gitRepoPath, String type, String hash, String name) throws IOException {
         Path indexPath = Paths.get(gitRepoPath, "index");
