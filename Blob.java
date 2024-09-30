@@ -1,24 +1,17 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.io.*;
+import java.nio.file.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Logger;
 import java.util.zip.Deflater;
-
 
 public class Blob {
     public static boolean compressionEnabled;
+    private static final Logger logger = Logger.getLogger(Blob.class.getName());
+    // This is for Bonus Goal threee: to decide whether to include a hidden file 
+    private static final boolean INCLUDE_HIDDEN_FILES = true;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
         compressionEnabled = true;
         String gitRepoPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
@@ -109,24 +102,39 @@ public class Blob {
 
 
     // This is the method for creating a new tree recursively
-    public static void createNewTree(String dirPath, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
-        File dir = new File(dirPath);
-        if (!dir.isDirectory()) {
+    // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
+    // Cyclic Directories - to ensure my code can handle symbolic links or shortcuts that may create cycles
+    // Review this link later: https://stackoverflow.com/questions/12100299/whats-a-canonical-path
+    private static void createNewTree(String dirPath, String gitRepoPath, Set<String> visitedPaths) throws IOException, NoSuchAlgorithmException {
+        Path dir = Paths.get(dirPath);
+        if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path is not a directory: " + dirPath);
         }
+        String canonicalPath = dir.toRealPath().toString();
+        if (visitedPaths.contains(canonicalPath)) {
+            logger.warning("Cyclic directory detected: " + canonicalPath);
+            return;
+        }
+        visitedPaths.add(canonicalPath);
         String treeName = createUniqueFileName(dirPath);
-        updateIndex(gitRepoPath, "tree", treeName, dir.getName());
-         File[] files = dir.listFiles();
-          if (files != null) {
-             for (File file : files) { 
-                if (file.isFile()) { 
-                    createNewBlob(file.getAbsolutePath(), gitRepoPath); 
-                } 
-                else if (file.isDirectory()) {
-                    createNewTree(file.getAbsolutePath(), gitRepoPath); 
-                } 
-            } 
-        } 
+        updateIndex(gitRepoPath, "tree", treeName, dir.getFileName().toString());
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path path : stream) {
+                if (!INCLUDE_HIDDEN_FILES && Files.isHidden(path)) {
+                    logger.info("Skipping hidden file/directory: " + path);
+                    continue;
+                }
+                if (!Files.isReadable(path)) {
+                    logger.warning("Permission denied: Cannot read " + path);
+                    continue;
+                }
+                if (Files.isRegularFile(path)) {
+                    createNewBlob(path.toString(), gitRepoPath);
+                } else if (Files.isDirectory(path)) {
+                    createNewTree(path.toString(), gitRepoPath, new HashSet<>(visitedPaths));
+                }
+            }
+        }
     }
 
     // Created for file updating process
@@ -134,5 +142,6 @@ public class Blob {
         Path indexPath = Paths.get(gitRepoPath, "index");
         String entry = type + " " + hash + " " + name + "\n";
         Files.write(indexPath, entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        logger.info("Updated index: " + entry.trim());
     }
 }
