@@ -163,13 +163,7 @@ public class Blob {
 
     //Sorry Sky ~ I didn't wnat any redundancy / code duplication between calculateSHA1 and createUniqueFileName so I refactored the code to eliminate the duplication. 
     // I created a single method to handle SHA-1 calcualtion for both strings and files
-    public static String calculateSHA1(File file) throws IOException, NoSuchAlgorithmException {
-        try (InputStream is = new FileInputStream(file)) {
-            return calculateSHA1(is);
-        }
-    }
-
-    public static String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
+    private static String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
         return calculateSHA1(new ByteArrayInputStream(content.getBytes()));
     }
 
