@@ -70,11 +70,13 @@ public class Blob {
 
 
     //Add directory method
+    // what this does is formats index file and handles cyclic directories and hidden files
     public static String addDirectory(String directoryPath) throws IOException, NoSuchAlgorithmException {
         Path dir = Paths.get(directoryPath);
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
         }
+        Set<Path> visitedPaths = new HashSet<>();
         String treeHash = createTree(dir, "", new HashSet<>());
         updateIndex("tree", treeHash, dir.getFileName().toString());
         return treeHash;
