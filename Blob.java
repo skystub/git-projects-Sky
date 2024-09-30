@@ -1,11 +1,7 @@
 import java.io.*;
 import java.nio.file.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.logging.Logger;
-import java.util.zip.Deflater;
+import java.security.*;
+import java.util.*;
 
 public class Blob {
     public static boolean compressionEnabled;
