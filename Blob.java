@@ -77,14 +77,14 @@ public class Blob {
             throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
         }
         Set<Path> visitedPaths = new HashSet<>();
-        String treeHash = createTree(dir, "", new HashSet<>());
+        String treeHash = createTree(dir, gitRepoPath, "", visitedPaths);
         updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString());
     }
     // This is the method for creating a new tree recursively
     // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
     // Cyclic Directories - to ensure my code can handle symbolic links or shortcuts that may create cycles
     // Review this link later: https://stackoverflow.com/questions/12100299/whats-a-canonical-path
-    private static String createTree(Path dir, String relativePath, Set<Path> visitedPaths) throws IOException, NoSuchAlgorithmException {
+    private static String createTree(Path dir, String gitRepoPath, String relativePath, Set<Path> visitedPaths) throws IOException, NoSuchAlgorithmException {
         StringBuilder treeContent = new StringBuilder();
         
         // Handle cyclic directories
@@ -111,16 +111,24 @@ public class Blob {
                     continue;
                 }
 
+                
                 String fullPath = relativePath.isEmpty() ? name : relativePath + "/" + name;
+
+                // IF FILE
+                // if its a file then create a blob and add it to the tree
                 if (Files.isRegularFile(path)) {
-                    String blobHash = createBlob(path);
+                    String blobHash = createBlob(path, gitRepoPath);
                     treeContent.append(String.format("blob %s %s\n", blobHash, name));
-                    updateIndex("blob", blobHash, fullPath);
-                } else if (Files.isDirectory(path)) {
-                    String subTreeHash = createTree(path, fullPath, new HashSet<>(visitedPaths));
+                    updateIndex(gitRepoPath, "blob", blobHash, fullPath);
+                } 
+
+                // IF DIRECTORY
+                // if its a directory use recurison to make another tree
+                else if (Files.isDirectory(path)) {
+                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths));
                     if (!subTreeHash.isEmpty()) {
                         treeContent.append(String.format("tree %s %s\n", subTreeHash, name));
-                        updateIndex("tree", subTreeHash, fullPath);
+                        updateIndex(gitRepoPath, "tree", subTreeHash, fullPath);
                     }
                 }
             }
@@ -128,21 +136,21 @@ public class Blob {
             System.out.println("Access denied to directory: " + dir);
         }
 
-        return saveObject(treeContent.toString());
+        return saveObject(treeContent.toString(), gitRepoPath);
     }
-    private static String createBlob(Path file) throws IOException, NoSuchAlgorithmException {
+    private static String createBlob(Path file, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
         try {
             byte[] content = Files.readAllBytes(file);
-            return saveObject(new String(content));
+            return saveObject(new String(content), gitRepoPath);
         } catch (AccessDeniedException e) {
             System.out.println("Access denied to file: " + file);
             return "";
         }
     }
 
-    private static String saveObject(String content) throws IOException, NoSuchAlgorithmException {
+    private static String saveObject(String content, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
         String hash = calculateSHA1(content);
-        Path objectPath = Paths.get(objectsDir, hash);
+        Path objectPath = Paths.get(gitRepoPath, objectsDir, hash);
         Files.write(objectPath, content.getBytes(), StandardOpenOption.CREATE);
         return hash;
     }
