@@ -32,10 +32,8 @@ public class Blob {
         FileInputStream in = new FileInputStream(file);
         BufferedInputStream br = new BufferedInputStream(in);
         MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
-
         byte[] inputBytes = br.readAllBytes();
         byte[] endingBytes;
-
         in.close();
         br.close();
 
@@ -110,9 +108,12 @@ public class Blob {
     }
 
 
-    // This is the method for creating anew tree recursively
+    // This is the method for creating a new tree recursively
     public static void createNewTree(String dirPath, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
-        File dir = new File(dirPath); 
+        File dir = new File(dirPath);
+        if (!dir.isDirectory()) {
+            throw new IllegalArgumentException("Path is not a directory: " + dirPath);
+        }
         String treeName = createUniqueFileName(dirPath);
         updateIndex(gitRepoPath, "tree", treeName, dir.getName());
          File[] files = dir.listFiles();
@@ -127,7 +128,7 @@ public class Blob {
             } 
         } 
     }
-    
+
     // Created for file updating process
     private static void updateIndex(String gitRepoPath, String type, String hash, String name) throws IOException {
         Path indexPath = Paths.get(gitRepoPath, "index");
