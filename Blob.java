@@ -71,7 +71,7 @@ public class Blob {
 
     //Add directory method
     // what this does is formats index file and handles cyclic directories and hidden files
-    public static void addDirectory(String directoryPath) throws IOException, NoSuchAlgorithmException {
+    public static void addDirectory(String gitRepoPath, String directoryPath) throws IOException, NoSuchAlgorithmException {
         Path dir = Paths.get(directoryPath);
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
