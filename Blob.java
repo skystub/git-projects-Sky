@@ -71,15 +71,14 @@ public class Blob {
 
     //Add directory method
     // what this does is formats index file and handles cyclic directories and hidden files
-    public static String addDirectory(String directoryPath) throws IOException, NoSuchAlgorithmException {
+    public static void addDirectory(String directoryPath) throws IOException, NoSuchAlgorithmException {
         Path dir = Paths.get(directoryPath);
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
         }
         Set<Path> visitedPaths = new HashSet<>();
         String treeHash = createTree(dir, "", new HashSet<>());
-        updateIndex("tree", treeHash, dir.getFileName().toString());
-        return treeHash;
+        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString());
     }
     // This is the method for creating a new tree recursively
     // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
@@ -148,9 +147,9 @@ public class Blob {
         return hash;
     }
 
-    private static void updateIndex(String type, String hash, String path) throws IOException {
+    private static void updateIndex(String gitRepoPath, String type, String hash, String path) throws IOException {
         String entry = String.format("%s %s %s\n", type, hash, path);
-        Files.write(Paths.get(indexFile), entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        Files.write(Paths.get(gitRepoPath, indexFile), entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
 
