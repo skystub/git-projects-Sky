@@ -1,55 +1,19 @@
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.io.FileOutputStream;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.BufferedOutputStream;
+import java.io.*;
+import java.nio.file.*;
+import java.security.*;
+import java.util.*;
 import java.util.zip.Deflater;
-import java.io.ByteArrayOutputStream;
-
 
 public class Blob {
     public static boolean compressionEnabled;
+    // This is for Bonus Goal threee: to decide whether to include a hidden file 
+    private static final String objectsDir = "objects";
+    private static final String indexFile = "index";
+    private static final boolean includeHiddenFiles = true;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
         compressionEnabled = true;
-        createNewBlob("/Users/skystubbeman/Desktop/tester.txt","/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git");
-    }
-
-    public static String createUniqueFileName(String path)
-            throws FileNotFoundException, IOException, NoSuchAlgorithmException {
-        File file = new File(path);
-       
-        FileInputStream in = new FileInputStream(file);
-        BufferedInputStream br = new BufferedInputStream(in);
-        MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
-
-        byte[] inputBytes = br.readAllBytes();
-        byte[] endingBytes;
-
-        in.close();
-        br.close();
-
-        if (compressionEnabled){
-            endingBytes = compressBlob(inputBytes);
-        }
-        else{
-            endingBytes = inputBytes;
-        }
-       
-        sha1Digest.update(endingBytes);
-        byte[] hash = sha1Digest.digest();
-
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < hash.length; i++) {
-            sb.append(String.format("%02x", hash[i]));
-        }
-        System.out.println(sb.toString());
-        return sb.toString();
+        String gitRepoPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
+        createNewBlob("/Users/skystubbeman/Desktop/tester.txt", gitRepoPath);
     }
 
     public static byte[] compressBlob(byte[] inputBytes) throws IOException{
@@ -102,5 +66,132 @@ public class Blob {
         File filePointer = new File(filePath);
         bw.write(name + " " + filePointer.getName() + "\n"); 
         bw.close();
+    }
+
+
+    //Add directory method
+    // what this does is formats index file and handles cyclic directories and hidden files
+    public static void addDirectory(String gitRepoPath, String directoryPath) throws IOException, NoSuchAlgorithmException {
+        Path dir = Paths.get(directoryPath);
+        if (!Files.isDirectory(dir)) {
+            throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
+        }
+        Set<Path> visitedPaths = new HashSet<>();
+        String treeHash = createTree(dir, gitRepoPath, "", visitedPaths);
+        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString());
+    }
+    // This is the method for creating a new tree recursively
+    // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
+    // Cyclic Directories - to ensure my code can handle symbolic links or shortcuts that may create cycles
+    // Review this link later: https://stackoverflow.com/questions/12100299/whats-a-canonical-path
+    private static String createTree(Path dir, String gitRepoPath, String relativePath, Set<Path> visitedPaths) throws IOException, NoSuchAlgorithmException {
+        StringBuilder treeContent = new StringBuilder();
+        
+        // Handle cyclic directories
+        Path canonicalPath = dir.toRealPath();
+        if (visitedPaths.contains(canonicalPath)) {
+            System.out.println("Cyclic directory detected: " + canonicalPath);
+            return "";
+        }
+        visitedPaths.add(canonicalPath);
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path path : stream) {
+                String name = path.getFileName().toString();
+                
+                // Skip hidden files if not included
+                if (!includeHiddenFiles && Files.isHidden(path)) {
+                    System.out.println("Skipping hidden file/directory: " + path);
+                    continue;
+                }
+
+                // Check for read permissions
+                if (!Files.isReadable(path)) {
+                    System.out.println("Permission denied: Cannot read " + path);
+                    continue;
+                }
+
+                
+                String fullPath = relativePath.isEmpty() ? name : relativePath + "/" + name;
+
+                // IF FILE
+                // if its a file then create a blob and add it to the tree
+                if (Files.isRegularFile(path)) {
+                    String blobHash = createBlob(path, gitRepoPath);
+                    treeContent.append(String.format("blob %s %s\n", blobHash, name));
+                    updateIndex(gitRepoPath, "blob", blobHash, fullPath);
+                } 
+
+                // IF DIRECTORY
+                // if its a directory use recurison to make another tree
+                else if (Files.isDirectory(path)) {
+                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths));
+                    if (!subTreeHash.isEmpty()) {
+                        treeContent.append(String.format("tree %s %s\n", subTreeHash, name));
+                        updateIndex(gitRepoPath, "tree", subTreeHash, fullPath);
+                    }
+                }
+            }
+        } catch (AccessDeniedException e) {
+            System.out.println("Access denied to directory: " + dir);
+        }
+
+        return saveObject(treeContent.toString(), gitRepoPath);
+    }
+    private static String createBlob(Path file, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
+        try {
+            byte[] content = Files.readAllBytes(file);
+            return saveObject(new String(content), gitRepoPath);
+        } catch (AccessDeniedException e) {
+            System.out.println("Access denied to file: " + file);
+            return "";
+        }
+    }
+
+    private static String saveObject(String content, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
+        String hash = calculateSHA1(content);
+        Path objectPath = Paths.get(gitRepoPath, objectsDir, hash);
+        Files.write(objectPath, content.getBytes(), StandardOpenOption.CREATE);
+        return hash;
+    }
+
+    private static void updateIndex(String gitRepoPath, String type, String hash, String path) throws IOException {
+        String entry = String.format("%s %s %s\n", type, hash, path);
+        Files.write(Paths.get(gitRepoPath, indexFile), entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+    }
+
+
+    //Sorry Sky ~ I didn't wnat any redundancy / code duplication between calculateSHA1 and createUniqueFileName so I refactored the code to eliminate the duplication. 
+    // I created a single method to handle SHA-1 calcualtion for both strings and files
+    private static String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
+        return calculateSHA1(new ByteArrayInputStream(content.getBytes()));
+    }
+
+    private static String calculateSHA1(InputStream input) throws IOException, NoSuchAlgorithmException {
+        MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = input.read(buffer)) != -1) {
+            sha1Digest.update(buffer, 0, bytesRead);
+        }
+        byte[] hash = sha1Digest.digest();
+        return bytesToHex(hash);
+    }
+
+    private static String bytesToHex(byte[] hash) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+
+    public static String createUniqueFileName(String path) throws IOException, NoSuchAlgorithmException {
+        File file = new File(path);
+        byte[] content = Files.readAllBytes(file.toPath());
+        byte[] processedContent = compressionEnabled ? compressBlob(content) : content;
+        return calculateSHA1(new ByteArrayInputStream(processedContent));
     }
 }
