@@ -80,16 +80,22 @@ public class Blob {
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
         }
+        boolean isEmpty = false;
+        DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir);
+        if (!dirStream.iterator().hasNext()){
+            isEmpty = true;
+        }
+
         Set<Path> visitedPaths = new HashSet<>();
-        String treeHash = createTree(dir, gitRepoPath, "", visitedPaths);
-        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString());
+        String treeHash = createTree(dir, gitRepoPath, "", visitedPaths, true, true);
+        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString(), isEmpty); //will be last line unless this is the only directory right
     }
 
     // This is the method for creating a new tree recursively
     // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
     // Cyclic Directories - to ensure my code can handle symbolic links or shortcuts that may create cycles
     // Review this link later: https://stackoverflow.com/questions/12100299/whats-a-canonical-path
-    private static String createTree(Path dir, String gitRepoPath, String relativePath, Set<Path> visitedPaths) throws IOException, NoSuchAlgorithmException {
+    private static String createTree(Path dir, String gitRepoPath, String relativePath, Set<Path> visitedPaths, boolean firstIndexLine, boolean firstTreeLine) throws IOException, NoSuchAlgorithmException {
         StringBuilder treeContent = new StringBuilder();
         
         // Handle cyclic directories
@@ -122,18 +128,30 @@ public class Blob {
                 // IF FILE
                 // if its a file then create a blob and add it to the tree
                 if (Files.isRegularFile(path)) {
-                    String blobHash = createBlob(path, gitRepoPath);
-                    treeContent.append(String.format("blob %s %s\n", blobHash, name));
-                    updateIndex(gitRepoPath, "blob", blobHash, fullPath);
+                    String blobHash = createBlob(path, gitRepoPath, firstIndexLine); 
+                    updateIndex(gitRepoPath, "blob", blobHash, fullPath, firstIndexLine);
+                    firstIndexLine = false;
+                    if (firstTreeLine){
+                        treeContent.append(String.format("blob %s %s", blobHash, name));
+                        firstTreeLine = false;
+                    } else{
+                        treeContent.append(String.format("\nblob %s %s", blobHash, name));
+                    }
                 } 
 
                 // IF DIRECTORY
-                // if its a directory use recurison to make another tree
+                // if its a directory use recursion to make another tree
                 else if (Files.isDirectory(path)) {
-                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths));
+                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths), firstIndexLine, true);
                     if (!subTreeHash.isEmpty()) {
-                        treeContent.append(String.format("tree %s %s\n", subTreeHash, name));
-                        updateIndex(gitRepoPath, "tree", subTreeHash, fullPath);
+                        updateIndex(gitRepoPath, "tree", subTreeHash, fullPath, firstIndexLine);
+                        if (firstTreeLine){
+                            treeContent.append(String.format("tree %s %s", subTreeHash, name));
+                            firstTreeLine = false;
+                        }
+                        else{
+                            treeContent.append(String.format("\ntree %s %s", subTreeHash, name));
+                        }
                     }
                 }
             }
@@ -144,7 +162,7 @@ public class Blob {
         return saveObject(treeContent.toString(), gitRepoPath);
     }
 
-    private static String createBlob(Path file, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
+    private static String createBlob(Path file, String gitRepoPath, boolean isFirstLine) throws IOException, NoSuchAlgorithmException { //should write into index but doesnt
         try {
             byte[] content = Files.readAllBytes(file);
             return saveObject(new String(content), gitRepoPath);
@@ -161,8 +179,14 @@ public class Blob {
         return hash;
     }
 
-    private static void updateIndex(String gitRepoPath, String type, String hash, String path) throws IOException {
-        String entry = String.format("%s %s %s\n", type, hash, path);
+    private static void updateIndex(String gitRepoPath, String type, String hash, String path, boolean isFirstLine) throws IOException {
+        String entry;
+        if (isFirstLine){
+            entry = String.format("%s %s %s", type, hash, path);
+        }
+        else{
+            entry = String.format("\n%s %s %s", type, hash, path);
+        }
         Files.write(Paths.get(gitRepoPath, indexFile), entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
@@ -200,4 +224,4 @@ public class Blob {
         byte[] processedContent = compressionEnabled ? compressBlob(content) : content;
         return calculateSHA1(new ByteArrayInputStream(processedContent));
     }
-}
+}   
