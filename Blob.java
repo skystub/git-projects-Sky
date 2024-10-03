@@ -11,9 +11,11 @@ public class Blob {
     private static final String indexFile = "index";
     private static final boolean includeHiddenFiles = true;
     public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
-        compressionEnabled = true;
-        String gitRepoPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
-        createNewBlob("/Users/skystubbeman/Desktop/tester.txt", gitRepoPath);
+        compressionEnabled = false;
+        //String gitRepoPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
+        //createNewBlob("/Users/skystubbeman/Desktop/tester.txt", gitRepoPath);
+        //addDirectory(gitRepoPath, gitRepoPath);
+        
     }
 
     public static byte[] compressBlob(byte[] inputBytes) throws IOException{
@@ -38,6 +40,7 @@ public class Blob {
         String name = createUniqueFileName(filePath);
         File file = new File(gitRepoPath + "/objects", name); 
         boolean check = file.createNewFile();
+
         if (!check){
             System.out.println("blob already exists");
         }
@@ -48,21 +51,22 @@ public class Blob {
 
             if(compressionEnabled){
                 byte[] inputBytes = inputStream.readAllBytes();
-                byte[] endingBytes;
-                endingBytes = compressBlob(inputBytes);
+                byte[] endingBytes = compressBlob(inputBytes);
                 outputStream.write(endingBytes);
             }
             else{
-                int i;
-                while ((i = inputStream.read()) != -1){
-                    outputStream.write(i);
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead); 
                 }
             }
             inputStream.close();
             outputStream.close();
         }
         
-        BufferedWriter bw = new BufferedWriter (new FileWriter(gitRepoPath + "/index", true));
+        BufferedWriter bw = new BufferedWriter (new FileWriter(gitRepoPath + File.separator + "index", true));
         File filePointer = new File(filePath);
         bw.write(name + " " + filePointer.getName() + "\n"); 
         bw.close();
@@ -80,6 +84,7 @@ public class Blob {
         String treeHash = createTree(dir, gitRepoPath, "", visitedPaths);
         updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString());
     }
+
     // This is the method for creating a new tree recursively
     // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
     // Cyclic Directories - to ensure my code can handle symbolic links or shortcuts that may create cycles
@@ -138,6 +143,7 @@ public class Blob {
 
         return saveObject(treeContent.toString(), gitRepoPath);
     }
+
     private static String createBlob(Path file, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
         try {
             byte[] content = Files.readAllBytes(file);

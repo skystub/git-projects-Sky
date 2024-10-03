@@ -12,7 +12,7 @@ public class GitRepoTester {
             System.out.println("git directory exists.");
         }
         else{
-            System.out.println("git direcotry doesn't exist.");
+            System.out.println("git directory doesn't exist.");
         }
 
         if (objects.exists() && objects.isDirectory()){
