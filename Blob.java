@@ -87,8 +87,8 @@ public class Blob {
         }
 
         Set<Path> visitedPaths = new HashSet<>();
-        String treeHash = createTree(dir, gitRepoPath, "", visitedPaths, true, true);
-        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString(), isEmpty); //will be last line unless this is the only directory right
+        String treeHash = createTree(dir, gitRepoPath, dir.getFileName().toString(), visitedPaths, true, true); //dir.get used to be ""
+        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString(), isEmpty);
     }
 
     // This is the method for creating a new tree recursively
@@ -142,7 +142,8 @@ public class Blob {
                 // IF DIRECTORY
                 // if its a directory use recursion to make another tree
                 else if (Files.isDirectory(path)) {
-                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths), firstIndexLine, true);
+                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths), firstIndexLine, true); 
+                    firstIndexLine = false; //y
                     if (!subTreeHash.isEmpty()) {
                         updateIndex(gitRepoPath, "tree", subTreeHash, fullPath, firstIndexLine);
                         if (firstTreeLine){
@@ -193,11 +194,11 @@ public class Blob {
 
     //Sorry Sky ~ I didn't wnat any redundancy / code duplication between calculateSHA1 and createUniqueFileName so I refactored the code to eliminate the duplication. 
     // I created a single method to handle SHA-1 calcualtion for both strings and files
-    private static String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
+    public static String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
         return calculateSHA1(new ByteArrayInputStream(content.getBytes()));
     }
 
-    private static String calculateSHA1(InputStream input) throws IOException, NoSuchAlgorithmException {
+    public static String calculateSHA1(InputStream input) throws IOException, NoSuchAlgorithmException {
         MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
         byte[] buffer = new byte[8192];
         int bytesRead;
