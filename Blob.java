@@ -7,17 +7,33 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;  
 
 public class Blob {
-    public static boolean compressionEnabled;
+    public static boolean compressionEnabled = false;
+    private String gitRepoPath;
     private static final String objectsDir = "objects";
     private static final String indexFile = "index";
     private static final boolean includeHiddenFiles = true;
     
-    public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
-        compressionEnabled = false;
-        String gitRepoPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
-        //createNewBlob("/Users/skystubbeman/Desktop/tester.txt", gitRepoPath);
-        //addDirectory(gitRepoPath, gitRepoPath);
-        //createRootTree(gitRepoPath);  
+    public Blob (String gitRepoPath){
+        this.gitRepoPath = gitRepoPath;
+    }
+    
+    public static void initRepo(String path) throws IOException {
+        File git = new File(path, "git");
+        if (!git.exists()){
+            git.mkdirs();
+
+            File objects = new File(git, objectsDir);
+            objects.mkdir();
+
+            File index = new File(git, indexFile);
+            index.createNewFile();
+
+            File head = new File (git, "HEAD");
+            head.createNewFile();
+
+        } else{
+            System.out.println("This already exists!");
+        }
     }
 
     public static byte[] compressBlob(byte[] inputBytes) throws IOException{
@@ -37,44 +53,7 @@ public class Blob {
         return endingBytes;
     }
 
-    public static void createNewBlob(String filePath, String gitRepoPath) throws FileNotFoundException, NoSuchAlgorithmException, IOException{
-        
-        String name = createUniqueFileName(filePath);
-        File file = new File(gitRepoPath + "/objects", name); 
-        boolean check = file.createNewFile();
-
-        if (!check){
-            System.out.println("blob already exists");
-        }
-
-        else{
-            BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(filePath));
-            BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file));
-
-            if(compressionEnabled){
-                byte[] inputBytes = inputStream.readAllBytes();
-                byte[] endingBytes = compressBlob(inputBytes);
-                outputStream.write(endingBytes);
-            }
-            else{
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead); 
-                }
-            }
-            inputStream.close();
-            outputStream.close();
-        }
-        
-        BufferedWriter bw = new BufferedWriter (new FileWriter(gitRepoPath + File.separator + "index", true));
-        File filePointer = new File(filePath);
-        bw.write(name + " " + filePointer.getName() + "\n"); 
-        bw.close();
-    }
-
-    public static void createCommit(String gitRepoPath, String author, String message) throws NoSuchAlgorithmException, IOException{
+    public void createCommit(String author, String message) throws NoSuchAlgorithmException, IOException{
         String rootTreeHash = createUniqueFileName(Paths.get(gitRepoPath, "index").toString());
         StringBuilder content = new StringBuilder();
         java.util.Date date = new java.util.Date(); 
@@ -88,6 +67,7 @@ public class Blob {
         else{
             parent = br.readLine();
         }
+        br.close();
 
         content.append("tree: " + rootTreeHash + "\n" + "parent: " + parent + "\n" + "author: " + author + "\n" +  "date: " + date + "message: " + message);
 
@@ -98,7 +78,6 @@ public class Blob {
         commitFileWriter.write(content.toString());
         commitFileWriter.close();
         
-
         FileWriter headWriter = new FileWriter(head, false);
         headWriter.write(commitHash);
         headWriter.close();
@@ -109,21 +88,20 @@ public class Blob {
         indexWriter.write("");
         indexWriter.close();
 
-        createRootTree(gitRepoPath);
-
+        createRootTree();
     }
 
-    public static String getLatestCommit(String gitRepoPath) throws NoSuchAlgorithmException, IOException{
+    private String getLatestCommit() throws NoSuchAlgorithmException, IOException{
         return createUniqueFileName(Paths.get(gitRepoPath, "index").toString());
     }
 
-    public static void createRootTree(String gitRepoPath) throws FileNotFoundException, NoSuchAlgorithmException, IOException{
-        createNewBlob(Paths.get(gitRepoPath, "index").toString(), gitRepoPath);
+    private void createRootTree() throws NoSuchAlgorithmException, IOException{
+        createBlob(Paths.get(gitRepoPath, "index"));
     }
 
     //Add directory method
     // what this does is formats index file and handles cyclic directories and hidden files
-    public static void addDirectory(String gitRepoPath, String directoryPath) throws IOException, NoSuchAlgorithmException {
+    public void addDirectory(String directoryPath) throws IOException, NoSuchAlgorithmException {
         Path dir = Paths.get(directoryPath);
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path is not a directory: " + directoryPath);
@@ -134,16 +112,18 @@ public class Blob {
             isEmpty = true;
         }
 
+        dirStream.close();
+
         Set<Path> visitedPaths = new HashSet<>();
-        String treeHash = createTree(dir, gitRepoPath, dir.getFileName().toString(), visitedPaths, true, true);
-        updateIndex(gitRepoPath, "tree", treeHash, dir.getFileName().toString(), isEmpty);
+        String treeHash = createTree(dir, dir.getFileName().toString(), visitedPaths, true, true);
+        updateIndex("tree", treeHash, dir.getFileName().toString(), isEmpty);
     }
 
     // This is the method for creating a new tree recursively
     // For the Bonus Section: I added Set<String> which is to keep track of visited directories.
     // Cyclic Directories - to ensure my code can handle symbolic links or shortcuts that may create cycles
     // Review this link later: https://stackoverflow.com/questions/12100299/whats-a-canonical-path
-    private static String createTree(Path dir, String gitRepoPath, String relativePath, Set<Path> visitedPaths, boolean firstIndexLine, boolean firstTreeLine) throws IOException, NoSuchAlgorithmException {
+    private String createTree(Path dir, String relativePath, Set<Path> visitedPaths, boolean firstIndexLine, boolean firstTreeLine) throws IOException, NoSuchAlgorithmException {
         StringBuilder treeContent = new StringBuilder();
         
         // Handle cyclic directories
@@ -176,8 +156,8 @@ public class Blob {
                 // IF FILE
                 // if its a file then create a blob and add it to the tree
                 if (Files.isRegularFile(path)) {
-                    String blobHash = createBlob(path, gitRepoPath, firstIndexLine); 
-                    updateIndex(gitRepoPath, "blob", blobHash, fullPath, firstIndexLine);
+                    String blobHash = createBlob(path); 
+                    updateIndex("blob", blobHash, fullPath, firstIndexLine);
                     firstIndexLine = false;
                     if (firstTreeLine){
                         treeContent.append(String.format("blob %s %s", blobHash, name));
@@ -190,10 +170,10 @@ public class Blob {
                 // IF DIRECTORY
                 // if its a directory use recursion to make another tree
                 else if (Files.isDirectory(path)) {
-                    String subTreeHash = createTree(path, gitRepoPath, fullPath, new HashSet<>(visitedPaths), firstIndexLine, true); 
+                    String subTreeHash = createTree(path, fullPath, new HashSet<>(visitedPaths), firstIndexLine, true); 
                     firstIndexLine = false; //y
                     if (!subTreeHash.isEmpty()) {
-                        updateIndex(gitRepoPath, "tree", subTreeHash, fullPath, firstIndexLine);
+                        updateIndex("tree", subTreeHash, fullPath, firstIndexLine);
                         if (firstTreeLine){
                             treeContent.append(String.format("tree %s %s", subTreeHash, name));
                             firstTreeLine = false;
@@ -208,33 +188,33 @@ public class Blob {
             System.out.println("Access denied to directory: " + dir);
         }
 
-        return saveObject(treeContent.toString(), gitRepoPath);
+        return saveObject(treeContent.toString());
     }
 
-    private static String createBlob(Path file, String gitRepoPath, boolean isFirstLine) throws IOException, NoSuchAlgorithmException { 
+    private String createBlob(Path file) throws IOException, NoSuchAlgorithmException { 
         try {
             byte[] content = Files.readAllBytes(file);
-            return saveObject(new String(content), gitRepoPath);
+            return saveObject(new String(content));
         } catch (AccessDeniedException e) {
             System.out.println("Access denied to file: " + file);
             return "";
         }
     }
 
-    private static String saveObject(String content, String gitRepoPath) throws IOException, NoSuchAlgorithmException {
+    private String saveObject(String content) throws IOException, NoSuchAlgorithmException {
         String hash = calculateSHA1(content);
         Path objectPath = Paths.get(gitRepoPath, objectsDir, hash);
         Files.write(objectPath, content.getBytes(), StandardOpenOption.CREATE);
         return hash;
     }
 
-    private static void updateIndex(String gitRepoPath, String type, String hash, String path, boolean isFirstLine) throws IOException {
+    private void updateIndex(String type, String hash, String path, boolean isFirstLine) throws IOException {
         String entry;
         if (isFirstLine){
             entry = String.format("%s %s %s", type, hash, path);
         }
         else{
-            entry = String.format("\n%s %s %s", type, hash, path);
+            entry = String.format("%n%s %s %s", type, hash, path);
         }
         Files.write(Paths.get(gitRepoPath, indexFile), entry.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
@@ -242,11 +222,11 @@ public class Blob {
 
     //Sorry Sky ~ I didn't wnat any redundancy / code duplication between calculateSHA1 and createUniqueFileName so I refactored the code to eliminate the duplication. 
     // I created a single method to handle SHA-1 calcualtion for both strings and files
-    public static String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
+    public String calculateSHA1(String content) throws NoSuchAlgorithmException, IOException {
         return calculateSHA1(new ByteArrayInputStream(content.getBytes()));
     }
 
-    public static String calculateSHA1(InputStream input) throws IOException, NoSuchAlgorithmException {
+    public String calculateSHA1(InputStream input) throws IOException, NoSuchAlgorithmException {
         MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
         byte[] buffer = new byte[8192];
         int bytesRead;
@@ -257,7 +237,7 @@ public class Blob {
         return bytesToHex(hash);
     }
 
-    private static String bytesToHex(byte[] hash) {
+    private String bytesToHex(byte[] hash) {
         StringBuilder hexString = new StringBuilder();
         for (byte b : hash) {
             String hex = Integer.toHexString(0xff & b);
@@ -267,10 +247,47 @@ public class Blob {
         return hexString.toString();
     }
 
-    public static String createUniqueFileName(String path) throws IOException, NoSuchAlgorithmException {
+    public String createUniqueFileName(String path) throws IOException, NoSuchAlgorithmException {
         File file = new File(path);
         byte[] content = Files.readAllBytes(file.toPath());
         byte[] processedContent = compressionEnabled ? compressBlob(content) : content;
         return calculateSHA1(new ByteArrayInputStream(processedContent));
+    }
+
+    public void createNewBlob(String filePath) throws FileNotFoundException, NoSuchAlgorithmException, IOException{
+        
+        String name = createUniqueFileName(filePath);
+        File file = new File(gitRepoPath + File.separator + "objects", name); 
+        boolean check = file.createNewFile();
+
+        if (!check){
+            System.out.println("blob already exists");
+        }
+
+        else{
+            BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(filePath));
+            BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file));
+
+            if(compressionEnabled){
+                byte[] inputBytes = inputStream.readAllBytes();
+                byte[] endingBytes = compressBlob(inputBytes);
+                outputStream.write(endingBytes);
+            }
+            else{
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead); 
+                }
+            }
+            inputStream.close();
+            outputStream.close();
+        }
+        
+        BufferedWriter bw = new BufferedWriter (new FileWriter(gitRepoPath + File.separator + "index", true));
+        File filePointer = new File(filePath);
+        bw.write(name + " " + filePointer.getName() + "\n"); 
+        bw.close();
     }
 }   

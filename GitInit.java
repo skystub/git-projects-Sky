@@ -1,7 +1,7 @@
 import java.io.File;
 import java.io.IOException;
 
-public class Git {
+public class GitInit {
     public static void main(String[] args) throws IOException {
         String testPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky";
         //initRepo(testPath);

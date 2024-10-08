@@ -7,31 +7,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class BlobTester {
+    private static Blob git = new Blob("/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git");
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
         String gitPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
         String content = "hello world and everyone in it!";
         String correctHash = "88d9814d5c99271752f74fae7f363230a68e06b7"; // using online sha-1 hash
         // blobValidation(gitPath, content, correctHash);
         directoryValidation(gitPath);
-    }
-
-    public static void verifyBlob(Path file, String hash, String name, String gitRepoPath) throws IOException {
-        Path objectFile = Paths.get(gitRepoPath, "objects", hash);
-        if (Files.exists(objectFile)) {
-            System.out.println("blob for " + name + " exists with hash: " + hash);
-
-            byte[] originalContent = Files.readAllBytes(file);
-            byte[] storedContent = Files.readAllBytes(objectFile);
-
-            if (Arrays.equals(originalContent, storedContent)) {
-                System.out.println("blob content matches the original file\n");
-            } else {
-                System.out.println("blob content does not match the original file\n");
-            }
-
-        } else {
-            System.out.println("blob for " + name + " does not exist\n");
-        }
     }
 
     public static void directoryValidation(String gitRepoPath) throws IOException, NoSuchAlgorithmException {
@@ -58,12 +40,12 @@ public class BlobTester {
             Path file3 = Files.createFile(dir5.resolve("file3.txt"));
             Files.write(file3, "hello world!!".getBytes());
 
-            Blob.addDirectory(gitRepoPath, testDir.toString());
+            git.addDirectory(testDir.toString());
 
             ArrayList<String> indexEntry = new ArrayList<String>();
 
             // file1
-            String file1Hash = Blob.createUniqueFileName(file1.toString());
+            String file1Hash = git.createUniqueFileName(file1.toString());
             String file1Entry = "blob " + file1Hash + " file1.txt";
 
             verifyBlob(file1, file1Hash, "file1.txt", gitRepoPath);
@@ -72,7 +54,7 @@ public class BlobTester {
                     + dir1.getFileName().toString() + File.separator + file1.getFileName().toString());
 
             // file2
-            String file2Hash = Blob.createUniqueFileName(file2.toString());
+            String file2Hash = git.createUniqueFileName(file2.toString());
             String file2Entry = "blob " + file2Hash + " file2.txt";
 
             verifyBlob(file2, file2Hash, "file2.txt", gitRepoPath);
@@ -83,7 +65,7 @@ public class BlobTester {
                     + file2.getFileName().toString());
 
             // file3
-            String file3Hash = Blob.createUniqueFileName(file3.toString());
+            String file3Hash = git.createUniqueFileName(file3.toString());
             String file3Entry = "blob " + file3Hash + " file3.txt";
 
             verifyBlob(file3, file3Hash, "file3.txt", gitRepoPath);
@@ -94,7 +76,7 @@ public class BlobTester {
                     + dir5.getFileName().toString() + File.separator + "file3.txt");
 
             // dir5
-            String dir5Hash = Blob.calculateSHA1(file3Entry);
+            String dir5Hash = git.calculateSHA1(file3Entry);
             String dir5Entry = "tree " + dir5Hash + " dir5";
 
             Path dir5ObjectFile = Paths.get(gitRepoPath, "objects", dir5Hash);
@@ -110,7 +92,7 @@ public class BlobTester {
             }
 
             // dir4
-            String dir4Hash = Blob.calculateSHA1(file2Entry + "\n" + dir5Entry);
+            String dir4Hash = git.calculateSHA1(file2Entry + "\n" + dir5Entry);
             String dir4Entry = "tree " + dir4Hash + " dir4";
 
             Path dir4ObjectFile = Paths.get(gitRepoPath, "objects", dir4Hash);
@@ -126,7 +108,7 @@ public class BlobTester {
             }
 
             // dir3
-            String dir3Hash = Blob.calculateSHA1(dir4Entry);
+            String dir3Hash = git.calculateSHA1(dir4Entry);
             String dir3Entry = "tree " + dir3Hash + " dir3";
 
             Path dir3ObjectFile = Paths.get(gitRepoPath, "objects", dir3Hash);
@@ -141,7 +123,7 @@ public class BlobTester {
             }
 
             // dir2
-            String dir2Hash = Blob.calculateSHA1(dir3Entry);
+            String dir2Hash = git.calculateSHA1(dir3Entry);
             String dir2Entry = "tree " + dir2Hash + " dir2";
 
             Path dir2ObjectFile = Paths.get(gitRepoPath, "objects", dir2Hash);
@@ -155,7 +137,7 @@ public class BlobTester {
             }
 
             // dir1
-            String dir1Hash = Blob.calculateSHA1(file1Entry + "\n" + dir2Entry);
+            String dir1Hash = git.calculateSHA1(file1Entry + "\n" + dir2Entry);
             String dir1Entry = "tree " + dir1Hash + " dir1";
 
             Path dir1ObjectFile = Paths.get(gitRepoPath, "objects", dir1Hash);
@@ -169,7 +151,7 @@ public class BlobTester {
             }
 
             // testDir
-            String testFolderHash = Blob.calculateSHA1(dir1Entry);
+            String testFolderHash = git.calculateSHA1(dir1Entry);
             String testFolderEntry = "tree " + testFolderHash + " testFolder";
 
             Path testFolderObjectFile = Paths.get(gitRepoPath, "objects", testFolderHash);
@@ -206,6 +188,25 @@ public class BlobTester {
         }
     }
 
+    public static void verifyBlob(Path file, String hash, String name, String gitRepoPath) throws IOException {
+        Path objectFile = Paths.get(gitRepoPath, "objects", hash);
+        if (Files.exists(objectFile)) {
+            System.out.println("blob for " + name + " exists with hash: " + hash);
+
+            byte[] originalContent = Files.readAllBytes(file);
+            byte[] storedContent = Files.readAllBytes(objectFile);
+
+            if (Arrays.equals(originalContent, storedContent)) {
+                System.out.println("blob content matches the original file\n");
+            } else {
+                System.out.println("blob content does not match the original file\n");
+            }
+
+        } else {
+            System.out.println("blob for " + name + " does not exist\n");
+        }
+    }
+
     private static void deleteDirectoryRecursively(Path path) throws IOException {
         if (Files.isDirectory(path)) {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
@@ -217,6 +218,19 @@ public class BlobTester {
         Files.delete(path);
     }
 
+    public static void clearGit(String gitRepoPath) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get(gitRepoPath, "objects"))) {
+            for (Path entry : stream) {
+                Files.delete(entry);
+            }
+        }
+
+        File objects = new File(Paths.get(gitRepoPath, "index").toString());
+        FileWriter writer = new FileWriter(objects, false);
+        writer.write("");
+        writer.close();
+    }
+
     public static void blobValidation(String gitPath, String content, String correctHash)
             throws IOException, NoSuchAlgorithmException {
         File file1 = new File("./", "test.txt");
@@ -226,7 +240,7 @@ public class BlobTester {
         fw1.write(content);
         fw1.close();
 
-        Blob.createNewBlob(file1.getPath(), gitPath);
+        git.createNewBlob(file1.getPath());
 
         File testFile = new File(gitPath + File.separator + "objects", correctHash);
 
@@ -279,18 +293,5 @@ public class BlobTester {
         }
         bufr.close();
         clearGit(gitPath);
-    }
-
-    public static void clearGit(String gitRepoPath) throws IOException {
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get(gitRepoPath, "objects"))) {
-            for (Path entry : stream) {
-                Files.delete(entry);
-            }
-        }
-
-        File objects = new File(Paths.get(gitRepoPath, "index").toString());
-        FileWriter writer = new FileWriter(objects, false);
-        writer.write("");
-        writer.close();
     }
 }

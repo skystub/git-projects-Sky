@@ -1,7 +1,7 @@
 import java.io.File;
 import java.io.IOException;
 
-public class GitRepoTester {
+public class GitInitTester {
 
     public static void testForGitRepo(String path){
         File git = new File(path, "git");
