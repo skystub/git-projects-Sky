@@ -10,16 +10,16 @@ public class BlobTester {
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
         String gitPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
         String content = "hello world and everyone in it!";
-        String correctHash = "88d9814d5c99271752f74fae7f363230a68e06b7"; //using online sha-1 hash
-        //blobValidation(gitPath, content, correctHash);
+        String correctHash = "88d9814d5c99271752f74fae7f363230a68e06b7"; // using online sha-1 hash
+        // blobValidation(gitPath, content, correctHash);
         directoryValidation(gitPath);
     }
 
-    public static void verifyBlob(Path file, String hash, String name, String gitRepoPath) throws IOException{
+    public static void verifyBlob(Path file, String hash, String name, String gitRepoPath) throws IOException {
         Path objectFile = Paths.get(gitRepoPath, "objects", hash);
-        if (Files.exists(objectFile)){
-            System.out.println("blob for " + name  + " exists with hash: " + hash);
-            
+        if (Files.exists(objectFile)) {
+            System.out.println("blob for " + name + " exists with hash: " + hash);
+
             byte[] originalContent = Files.readAllBytes(file);
             byte[] storedContent = Files.readAllBytes(objectFile);
 
@@ -34,14 +34,14 @@ public class BlobTester {
         }
     }
 
-    public static void directoryValidation(String gitRepoPath) throws IOException, NoSuchAlgorithmException{
+    public static void directoryValidation(String gitRepoPath) throws IOException, NoSuchAlgorithmException {
         Path currentDir = Paths.get(".").toAbsolutePath().normalize();
         Path testDir;
         if (Files.exists(currentDir.resolve("testFolder"))) {
             System.out.println("testFolder already exists.");
         } else {
             testDir = Files.createDirectory(currentDir.resolve("testFolder"));
-            
+
             Path dir1 = Files.createDirectory(testDir.resolve("dir1"));
             Path file1 = Files.createFile(dir1.resolve("file1.txt"));
             Files.write(file1, "hello world!".getBytes());
@@ -62,112 +62,122 @@ public class BlobTester {
 
             ArrayList<String> indexEntry = new ArrayList<String>();
 
-            //file1
+            // file1
             String file1Hash = Blob.createUniqueFileName(file1.toString());
             String file1Entry = "blob " + file1Hash + " file1.txt";
 
             verifyBlob(file1, file1Hash, "file1.txt", gitRepoPath);
 
-            indexEntry.add("blob " + file1Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString() + File.separator + file1.getFileName().toString());
+            indexEntry.add("blob " + file1Hash + " " + testDir.getFileName().toString() + File.separator
+                    + dir1.getFileName().toString() + File.separator + file1.getFileName().toString());
 
-            //file2
+            // file2
             String file2Hash = Blob.createUniqueFileName(file2.toString());
             String file2Entry = "blob " + file2Hash + " file2.txt";
 
             verifyBlob(file2, file2Hash, "file2.txt", gitRepoPath);
 
-            indexEntry.add("blob " + file2Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator + dir3.getFileName().toString() + File.separator + dir4.getFileName().toString() + File.separator + file2.getFileName().toString());
+            indexEntry.add("blob " + file2Hash + " " + testDir.getFileName().toString() + File.separator
+                    + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator
+                    + dir3.getFileName().toString() + File.separator + dir4.getFileName().toString() + File.separator
+                    + file2.getFileName().toString());
 
-            //file3
+            // file3
             String file3Hash = Blob.createUniqueFileName(file3.toString());
             String file3Entry = "blob " + file3Hash + " file3.txt";
 
             verifyBlob(file3, file3Hash, "file3.txt", gitRepoPath);
 
-            indexEntry.add("blob " + file3Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator + dir3.getFileName().toString() + File.separator + dir4.getFileName().toString() + File.separator + dir5.getFileName().toString() + File.separator + "file3.txt");
+            indexEntry.add("blob " + file3Hash + " " + testDir.getFileName().toString() + File.separator
+                    + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator
+                    + dir3.getFileName().toString() + File.separator + dir4.getFileName().toString() + File.separator
+                    + dir5.getFileName().toString() + File.separator + "file3.txt");
 
-
-            //dir5
+            // dir5
             String dir5Hash = Blob.calculateSHA1(file3Entry);
             String dir5Entry = "tree " + dir5Hash + " dir5";
 
             Path dir5ObjectFile = Paths.get(gitRepoPath, "objects", dir5Hash);
-            if (Files.exists(dir5ObjectFile)){
+            if (Files.exists(dir5ObjectFile)) {
                 System.out.println("tree for dir5 exists with hash: " + dir5Hash + "\n");
-                
-                indexEntry.add("tree " + dir5Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator + dir3.getFileName().toString() + File.separator + dir4.getFileName().toString() + File.separator + dir5.getFileName().toString());
-            }
-            else{
+
+                indexEntry.add("tree " + dir5Hash + " " + testDir.getFileName().toString() + File.separator
+                        + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString()
+                        + File.separator + dir3.getFileName().toString() + File.separator
+                        + dir4.getFileName().toString() + File.separator + dir5.getFileName().toString());
+            } else {
                 System.out.println("tree for dir5 does not exist\n");
             }
 
-            //dir4
+            // dir4
             String dir4Hash = Blob.calculateSHA1(file2Entry + "\n" + dir5Entry);
             String dir4Entry = "tree " + dir4Hash + " dir4";
 
             Path dir4ObjectFile = Paths.get(gitRepoPath, "objects", dir4Hash);
-            if (Files.exists(dir4ObjectFile)){
+            if (Files.exists(dir4ObjectFile)) {
                 System.out.println("tree for dir4 exists with hash: " + dir4Hash + "\n");
-                
-                indexEntry.add("tree " + dir4Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator + dir3.getFileName().toString() + File.separator + dir4.getFileName().toString());
-            }
-            else{
+
+                indexEntry.add("tree " + dir4Hash + " " + testDir.getFileName().toString() + File.separator
+                        + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString()
+                        + File.separator + dir3.getFileName().toString() + File.separator
+                        + dir4.getFileName().toString());
+            } else {
                 System.out.println("tree for dir4 does not exist\n");
             }
 
-            //dir3
+            // dir3
             String dir3Hash = Blob.calculateSHA1(dir4Entry);
             String dir3Entry = "tree " + dir3Hash + " dir3";
 
             Path dir3ObjectFile = Paths.get(gitRepoPath, "objects", dir3Hash);
-            if (Files.exists(dir3ObjectFile)){
+            if (Files.exists(dir3ObjectFile)) {
                 System.out.println("tree for dir3 exists with hash: " + dir3Hash + "\n");
-                
-                indexEntry.add("tree " + dir3Hash + " " + testDir.getFileName() + File.separator + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString() + File.separator + dir3.getFileName().toString());
-            }
-            else{
+
+                indexEntry.add("tree " + dir3Hash + " " + testDir.getFileName() + File.separator
+                        + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString()
+                        + File.separator + dir3.getFileName().toString());
+            } else {
                 System.out.println("tree for dir3 does not exist\n");
             }
 
-            //dir2
+            // dir2
             String dir2Hash = Blob.calculateSHA1(dir3Entry);
             String dir2Entry = "tree " + dir2Hash + " dir2";
 
             Path dir2ObjectFile = Paths.get(gitRepoPath, "objects", dir2Hash);
-            if (Files.exists(dir2ObjectFile)){
+            if (Files.exists(dir2ObjectFile)) {
                 System.out.println("tree for dir2 exists with hash: " + dir2Hash + "\n");
-                
-                indexEntry.add("tree " + dir2Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString());
-            }
-            else{
+
+                indexEntry.add("tree " + dir2Hash + " " + testDir.getFileName().toString() + File.separator
+                        + dir1.getFileName().toString() + File.separator + dir2.getFileName().toString());
+            } else {
                 System.out.println("tree for dir2 does not exist\n");
             }
 
-            //dir1
+            // dir1
             String dir1Hash = Blob.calculateSHA1(file1Entry + "\n" + dir2Entry);
             String dir1Entry = "tree " + dir1Hash + " dir1";
 
             Path dir1ObjectFile = Paths.get(gitRepoPath, "objects", dir1Hash);
-            if (Files.exists(dir1ObjectFile)){
+            if (Files.exists(dir1ObjectFile)) {
                 System.out.println("tree for dir1 exists with hash: " + dir1Hash + "\n");
-                
-                indexEntry.add("tree " + dir1Hash + " " + testDir.getFileName().toString() + File.separator + dir1.getFileName().toString());
-            }
-            else{
+
+                indexEntry.add("tree " + dir1Hash + " " + testDir.getFileName().toString() + File.separator
+                        + dir1.getFileName().toString());
+            } else {
                 System.out.println("tree for dir1 does not exist\n");
             }
 
-            //testDir
+            // testDir
             String testFolderHash = Blob.calculateSHA1(dir1Entry);
             String testFolderEntry = "tree " + testFolderHash + " testFolder";
 
             Path testFolderObjectFile = Paths.get(gitRepoPath, "objects", testFolderHash);
-            if (Files.exists(testFolderObjectFile)){
+            if (Files.exists(testFolderObjectFile)) {
                 System.out.println("tree for testFolder exists with hash: " + testFolderHash + "\n");
-                
+
                 indexEntry.add("tree " + testFolderHash + " " + testDir.getFileName().toString());
-            }
-            else{
+            } else {
                 System.out.println("tree for testFolder does not exist\n");
             }
 
@@ -207,22 +217,22 @@ public class BlobTester {
         Files.delete(path);
     }
 
-    public static void blobValidation(String gitPath, String content, String correctHash) throws IOException, NoSuchAlgorithmException{
+    public static void blobValidation(String gitPath, String content, String correctHash)
+            throws IOException, NoSuchAlgorithmException {
         File file1 = new File("./", "test.txt");
         file1.createNewFile();
-        
+
         FileWriter fw1 = new FileWriter(file1);
         fw1.write(content);
-        fw1.close(); 
+        fw1.close();
 
         Blob.createNewBlob(file1.getPath(), gitPath);
 
-        File testFile = new File (gitPath + File.separator + "objects", correctHash);
+        File testFile = new File(gitPath + File.separator + "objects", correctHash);
 
-        if (testFile.exists()){
+        if (testFile.exists()) {
             System.out.println("blob was created properly!\n");
-        }
-        else{
+        } else {
             System.out.println("blob wasn't created!\n");
         }
 
@@ -231,7 +241,7 @@ public class BlobTester {
         StringBuilder contents = new StringBuilder();
         String line;
 
-        while ((line = br.readLine()) != null){
+        while ((line = br.readLine()) != null) {
             contents.append(line);
         }
         br.close();
@@ -257,30 +267,30 @@ public class BlobTester {
         String indexLine;
         boolean lineFound = false;
 
-        while ((indexLine = bufr.readLine()) != null){
-            if (indexLine.equals (correctHash + " " + file1.getName())){
+        while ((indexLine = bufr.readLine()) != null) {
+            if (indexLine.equals(correctHash + " " + file1.getName())) {
                 lineFound = true;
                 System.out.println("index file has correct entry for blob");
                 break;
             }
         }
-        if (!lineFound){
+        if (!lineFound) {
             System.out.println("index file doesn't have the correct entry for blob");
         }
         bufr.close();
         clearGit(gitPath);
     }
 
-    public static void clearGit(String gitRepoPath) throws IOException{
+    public static void clearGit(String gitRepoPath) throws IOException {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get(gitRepoPath, "objects"))) {
             for (Path entry : stream) {
                 Files.delete(entry);
             }
         }
-            
+
         File objects = new File(Paths.get(gitRepoPath, "index").toString());
         FileWriter writer = new FileWriter(objects, false);
-        writer.write(""); 
-        writer.close();   
+        writer.write("");
+        writer.close();
     }
 }

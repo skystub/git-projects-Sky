@@ -20,6 +20,9 @@ public class Git {
             File index = new File(git, "index");
             index.createNewFile();
 
+            File head = new File (git, "HEAD");
+            head.createNewFile();
+
         } else{
             System.out.println("This already exists!");
         }
