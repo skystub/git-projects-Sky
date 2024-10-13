@@ -8,13 +8,16 @@ import java.util.Set;
 
 public class BlobTester {
     private static Blob git = new Blob("/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git");
+
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
         String gitPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
         String content = "hello world and everyone in it!";
         String correctHash = "88d9814d5c99271752f74fae7f363230a68e06b7"; // using online sha-1 hash
         // blobValidation(gitPath, content, correctHash);
+       
         directoryValidation(gitPath);
     }
+
 
     public static void directoryValidation(String gitRepoPath) throws IOException, NoSuchAlgorithmException {
         Path currentDir = Paths.get(".").toAbsolutePath().normalize();
@@ -183,8 +186,10 @@ public class BlobTester {
                 System.out.println("\nindex file looks correct!");
             }
             bufr.close();
-            deleteDirectoryRecursively(testDir);
-            clearGit(gitRepoPath);
+
+            git.commit("sky", "hi");
+            //deleteDirectoryRecursively(testDir);
+            //clearGit(gitRepoPath);
         }
     }
 

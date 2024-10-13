@@ -3,10 +3,10 @@ import java.nio.file.*;
 import java.security.*;
 import java.util.*;
 import java.util.zip.Deflater;
-import java.time.LocalDateTime;  
-import java.time.format.DateTimeFormatter;  
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
-public class Blob {
+public class Blob implements GitInterface{
     public static boolean compressionEnabled = false;
     private String gitRepoPath;
     private static final String objectsDir = "objects";
@@ -15,25 +15,6 @@ public class Blob {
     
     public Blob (String gitRepoPath){
         this.gitRepoPath = gitRepoPath;
-    }
-    
-    public static void initRepo(String path) throws IOException {
-        File git = new File(path, "git");
-        if (!git.exists()){
-            git.mkdirs();
-
-            File objects = new File(git, objectsDir);
-            objects.mkdir();
-
-            File index = new File(git, indexFile);
-            index.createNewFile();
-
-            File head = new File (git, "HEAD");
-            head.createNewFile();
-
-        } else{
-            System.out.println("This already exists!");
-        }
     }
 
     public static byte[] compressBlob(byte[] inputBytes) throws IOException{
@@ -53,50 +34,94 @@ public class Blob {
         return endingBytes;
     }
 
-    public void createCommit(String author, String message) throws NoSuchAlgorithmException, IOException{
-        String rootTreeHash = createUniqueFileName(Paths.get(gitRepoPath, "index").toString());
-        StringBuilder content = new StringBuilder();
-        java.util.Date date = new java.util.Date(); 
-        Path headPath = Paths.get(gitRepoPath, "HEAD");
-        File head = headPath.toFile();
-        BufferedReader br = new BufferedReader(new FileReader(head));
-        String parent;
-        if (Objects.equals(br.readLine(), null)){
-            parent = "";
-        }
-        else{
-            parent = br.readLine();
-        }
-        br.close();
+    public void stage(String filePath){
+        try {
+            int sepIndex = filePath.indexOf(File.separator);
+            if (sepIndex != -1){
+                String rootPath = filePath.substring(0, sepIndex);
 
-        content.append("tree: " + rootTreeHash + "\n" + "parent: " + parent + "\n" + "author: " + author + "\n" +  "date: " + date + "message: " + message);
+                Path indexPath = Paths.get(gitRepoPath, "index");
+                File index = indexPath.toFile();
+                FileWriter indexWriter = new FileWriter(index, false);
+                indexWriter.write("");
+                indexWriter.close();
 
-        String commitHash = calculateSHA1(content.toString());
-        File commitFile = new File(Paths.get(gitRepoPath, "objects").toString(), commitHash);
-        commitFile.createNewFile();
-        FileWriter commitFileWriter = new FileWriter(commitFile);
-        commitFileWriter.write(content.toString());
-        commitFileWriter.close();
+                addDirectory(rootPath); 
+            } else{
+                System.out.println("incorrect filePath");
+            }
+        } catch (IOException e) {
+            System.err.println("I/O error while staging the file: " + e.getMessage());
+        } catch (NoSuchAlgorithmException e) {
+            System.err.println("Algorithm error while staging the file: " + e.getMessage());
+        }
+    }
+
+    public String commit(String author, String message){
+
+        Path filePath = Paths.get("git", "index");
+        String rootTreeHash;
+        try (RandomAccessFile file = new RandomAccessFile(filePath.toString(), "r")) {
+            long fileLength = file.length() - 1;
+            StringBuilder lastLine = new StringBuilder();
+
+            for (long pointer = fileLength; pointer >= 0; pointer--) {
+                file.seek(pointer);
+                char ch = (char) file.read();
+
+                if (ch == '\n' && lastLine.length() > 0) {
+                    break;
+                }
+                lastLine.append(ch);
+            }
+
+            lastLine.reverse().toString();
+            rootTreeHash = lastLine.toString().substring(5,45);
         
-        FileWriter headWriter = new FileWriter(head, false);
-        headWriter.write(commitHash);
-        headWriter.close();
+            StringBuilder content = new StringBuilder();
+            java.util.Date date = new java.util.Date(); 
 
-        Path indexPath = Paths.get(gitRepoPath, "index");
-        File index = indexPath.toFile();
-        FileWriter indexWriter = new FileWriter(index, false);
-        indexWriter.write("");
-        indexWriter.close();
+            Path headPath = Paths.get(gitRepoPath, "HEAD");
+            File head = headPath.toFile();
+            BufferedReader br = new BufferedReader(new FileReader(head));
+            
+            String parent = br.readLine();
 
-        createRootTree();
+            if (parent == null){
+                parent = "";
+            }
+         
+            br.close();
+
+            content.append("tree: " + rootTreeHash + "\nparent: " + parent + "\nauthor: " + author + "\ndate: " + date + "\nmessage: " + message);
+
+            String commitHash = calculateSHA1(content.toString());
+            File commitFile = new File(Paths.get(gitRepoPath, "objects").toString(), commitHash);
+            commitFile.createNewFile();
+
+            FileWriter commitFileWriter = new FileWriter(commitFile);
+            commitFileWriter.write(content.toString());
+            commitFileWriter.close();
+            
+            FileWriter headWriter = new FileWriter(head, false);
+            headWriter.write(commitHash);
+            headWriter.close();
+
+            return commitHash;
+        
+        } catch (IOException e) {
+            return "error reading file: " + e.getMessage();
+        } catch (NoSuchAlgorithmException e) {
+            return "error, cant to compute hash bc of an algorithm issue: " + e.getMessage(); 
+        }
+    }
+
+    public void checkout(String commitHash){
+        
     }
 
     private String getLatestCommit() throws NoSuchAlgorithmException, IOException{
         return createUniqueFileName(Paths.get(gitRepoPath, "index").toString());
-    }
-
-    private void createRootTree() throws NoSuchAlgorithmException, IOException{
-        createBlob(Paths.get(gitRepoPath, "index"));
     }
 
     //Add directory method
