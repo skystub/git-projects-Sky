@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class BlobTester {
-    private static Blob git = new Blob("/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git");
+    private static Blob git = new Blob("/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git", "testFolder");
 
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
         String gitPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";

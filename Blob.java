@@ -9,12 +9,14 @@ import java.time.format.DateTimeFormatter;
 public class Blob implements GitInterface{
     public static boolean compressionEnabled = false;
     private String gitRepoPath;
+    private String rootTreeName;
     private static final String objectsDir = "objects";
     private static final String indexFile = "index";
     private static final boolean includeHiddenFiles = true;
     
-    public Blob (String gitRepoPath){
+    public Blob (String gitRepoPath, String rootTreeName){
         this.gitRepoPath = gitRepoPath;
+        this.rootTreeName = rootTreeName;
     }
 
     public static byte[] compressBlob(byte[] inputBytes) throws IOException{
@@ -117,7 +119,140 @@ public class Blob implements GitInterface{
     }
 
     public void checkout(String commitHash){
+        try {
+            Path commitFilePath = Paths.get("git", "objects", commitHash);
+            File commitFile = commitFilePath.toFile();
+    
+            if (!commitFile.exists()) {
+                System.out.println("commit " + commitHash + " doesn't exist :(");
+                return;
+            }
+    
+            BufferedReader br = new BufferedReader(new FileReader(commitFile));
+            String rootTreeHash = null;
+            String line;
         
+            while ((line = br.readLine()) != null) {
+                if (line.startsWith("tree: ")) {
+                    rootTreeHash = line.substring(6);
+                    break;
+                }
+            }
+            br.close();
+            
+            File directory = new File(Paths.get(rootTreeName).toString());
+
+            if (!directory.exists()) {
+                directory.mkdir();
+            }
+
+            Set<String> expectedFiles = new HashSet<>();
+
+            restoreTree(rootTreeHash, rootTreeName, expectedFiles); 
+            cleanUpWorkingDirectory(rootTreeName, expectedFiles);
+    
+            System.out.println("finished checkout");
+    
+        } catch (IOException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void cleanUpWorkingDirectory(String directoryPath, Set<String> expectedFiles){
+        File directory = new File(directoryPath);
+        File[] currentFiles = directory.listFiles();
+
+        if (currentFiles != null) {
+            for (File file : currentFiles) {
+                if (file.isDirectory()) {
+                    cleanUpWorkingDirectory(file.getPath(), expectedFiles);
+                    if (!expectedFiles.contains(file.getPath())) {
+                        if (file.delete()) {
+                            System.out.println("deleted unexpected directory: " + file.getPath());
+                        } else {
+                            System.out.println("couldn't delete directory: " + file.getPath());
+                        }
+                    }
+                } else {
+                    if (!expectedFiles.contains(file.getPath())) {
+                        if (file.delete()) {
+                            System.out.println("deleted unexpected file: " + file.getPath());
+                        } else {
+                            System.out.println("couldn't delete: " + file.getPath());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void restoreTree(String treeHash, String currentDirectory, Set<String> expectedFiles) throws IOException, NoSuchAlgorithmException{
+        Path treeFilePath = Paths.get("git", "objects", treeHash);
+        File treeFile = treeFilePath.toFile();
+
+        if (!treeFile.exists()) {
+            System.out.println("tree " + treeHash + " doesn't exist in objects :(");
+            return;
+        }
+
+        BufferedReader treeReader = new BufferedReader(new FileReader(treeFile));
+        String line;
+
+        while ((line = treeReader.readLine()) != null) {
+            String[] parts = line.split(" ");
+            String type = parts[0];
+            String objectHash = parts[1];
+            String fileName = parts[2];
+
+            Path fullPath = Paths.get(currentDirectory, fileName);
+            expectedFiles.add(fullPath.toString());
+
+            if (type.equals("blob")) {
+                restoreBlob(objectHash, fullPath.toString(), fileName);
+            } else if (type.equals("tree")) {
+                File dir = new File(fullPath.toString());
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                restoreTree(objectHash, fullPath.toString(), expectedFiles);
+            }
+        }
+        treeReader.close();
+    }
+
+    private void restoreBlob(String blobHash, String filePath, String fileName) throws IOException, NoSuchAlgorithmException {
+        Path blobFilePath = Paths.get("git", "objects", blobHash);
+        File blobFile = blobFilePath.toFile();
+
+        if (!blobFile.exists()) {
+            System.out.println("blob " + blobHash + " doesnt exist");
+            return;
+        }
+
+        BufferedReader blobReader = new BufferedReader(new FileReader(blobFile));
+        StringBuilder content = new StringBuilder();
+        String line;
+        List<String> lines = new ArrayList<>();
+
+        while ((line = blobReader.readLine()) != null) {
+            lines.add(line);
+        }
+        blobReader.close();
+
+        for (int i = 0; i < lines.size(); i++) {
+            content.append(lines.get(i));
+            if (i < lines.size() - 1) {
+                content.append("\n");
+            }
+        }
+
+        File file = new File(filePath);
+        if (!file.exists() || !createUniqueFileName(filePath.toString()).equals(blobHash)) {
+            FileWriter fileWriter = new FileWriter(filePath);
+            fileWriter.write(content.toString());
+            fileWriter.close();
+            System.out.println("restored file: " + filePath);
+        }
     }
 
     private String getLatestCommit() throws NoSuchAlgorithmException, IOException{
