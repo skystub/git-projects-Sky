@@ -15,25 +15,32 @@ public class GitTester {
     private static String rootTreeName = "rootTree";
 
     public static void main(String[] args) throws IOException {
+        //intializing git repo if doesn't already exist
         GitInit git = new GitInit();
         git.initRepo(".");
 
         try {
             String firstCommitHash;
             String secondCommitHash;
+            //creates a test working directory and outputs index file afterward
             setUp();
 
+            //tests commit, then making changes, staging them, and commiting again
             firstCommitHash = testCommit();
             testStage();
             secondCommitHash = testCommit();
 
+            //recreates the working directory as it was in the first testCommit()
             testCheckout(firstCommitHash);
 
+            //deletes whole working directory
             System.out.println("\ndeleting rootTree");
             deleteDirectoryRecursively(Paths.get(rootTreeName));
 
+            //recreates working directory as it was on second hash
             testCheckout(secondCommitHash);
 
+            //clears blobs in objects, information in head and index, also deletes the working directory
             cleanUp();
         } catch (Exception e) {
             e.printStackTrace();
