@@ -1,1 +1,7 @@
 # git-projects-Sky
+gitTester.java is the updated and functional tester.
+
+1. stage() was coded and works as intended. Everytime a new file is staged, it rebuilds the rootTree directory's blobs in objects and records it in index, so it's very memory intensive but functional. To use stage, input the new file or directory you've added.
+2. commit() also works as intended, input your author name and your commit message in the parameters. This creates a commit in objects with the current rootTree blob hash and the previous commit, and updates the HEAD to point to the new commit blob.
+3. checkout() also works well, input the commitHash you want to recreate to in the parameter. Then, it goes through your objects folder and adds any missing folders/files to rootTree, then compares the expected folders/files to what you actually have and deletes any extra.
+4. What bugs did find / which of em did you fix? I fixed how having a \n was changing the hashes in checkout when I was trying to compare them, and I fixed the extra folders and files in rootTree not being deleted. I had trouble updating hashes when I staged a new file, hence the method of rebuilding the whole rootTree in git after adding something new. 

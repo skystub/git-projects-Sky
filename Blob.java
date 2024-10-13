@@ -42,12 +42,15 @@ public class Blob implements GitInterface{
             if (sepIndex != -1){
                 String rootPath = filePath.substring(0, sepIndex);
 
+                //clears index file
+
                 Path indexPath = Paths.get(gitRepoPath, "index");
                 File index = indexPath.toFile();
                 FileWriter indexWriter = new FileWriter(index, false);
                 indexWriter.write("");
                 indexWriter.close();
 
+                //adds directory - creates blobs if they dont exist and updates the index file to reflect the current state
                 addDirectory(rootPath); 
             } else{
                 System.out.println("incorrect filePath");
@@ -63,6 +66,7 @@ public class Blob implements GitInterface{
 
         Path filePath = Paths.get("git", "index");
         String rootTreeHash;
+        //gets last line of index file, which is contains the hash of the rootTree blob 
         try (RandomAccessFile file = new RandomAccessFile(filePath.toString(), "r")) {
             long fileLength = file.length() - 1;
             StringBuilder lastLine = new StringBuilder();
@@ -78,11 +82,14 @@ public class Blob implements GitInterface{
             }
 
             lastLine.reverse().toString();
+
+            //gets the rootTreeHash
             rootTreeHash = lastLine.toString().substring(5,45);
         
             StringBuilder content = new StringBuilder();
             java.util.Date date = new java.util.Date(); 
 
+            //reading head to get parent commit
             Path headPath = Paths.get(gitRepoPath, "HEAD");
             File head = headPath.toFile();
             BufferedReader br = new BufferedReader(new FileReader(head));
@@ -95,8 +102,10 @@ public class Blob implements GitInterface{
          
             br.close();
 
+            //adding content to commit
             content.append("tree: " + rootTreeHash + "\nparent: " + parent + "\nauthor: " + author + "\ndate: " + date + "\nmessage: " + message);
 
+            //adding commit to objects
             String commitHash = calculateSHA1(content.toString());
             File commitFile = new File(Paths.get(gitRepoPath, "objects").toString(), commitHash);
             commitFile.createNewFile();
@@ -105,6 +114,7 @@ public class Blob implements GitInterface{
             commitFileWriter.write(content.toString());
             commitFileWriter.close();
             
+            //updates head
             FileWriter headWriter = new FileWriter(head, false);
             headWriter.write(commitHash);
             headWriter.close();
@@ -120,6 +130,7 @@ public class Blob implements GitInterface{
 
     public void checkout(String commitHash){
         try {
+            //gets commit in objects
             Path commitFilePath = Paths.get("git", "objects", commitHash);
             File commitFile = commitFilePath.toFile();
     
@@ -132,6 +143,7 @@ public class Blob implements GitInterface{
             String rootTreeHash = null;
             String line;
         
+            //gets hash of rootTree blob from commit
             while ((line = br.readLine()) != null) {
                 if (line.startsWith("tree: ")) {
                     rootTreeHash = line.substring(6);
@@ -142,13 +154,17 @@ public class Blob implements GitInterface{
             
             File directory = new File(Paths.get(rootTreeName).toString());
 
+            //if rootTree doesn't exist, create it
             if (!directory.exists()) {
                 directory.mkdir();
             }
 
             Set<String> expectedFiles = new HashSet<>();
 
+            //adds any files and directories that need to be added
             restoreTree(rootTreeHash, rootTreeName, expectedFiles); 
+
+            //deletes any files and directories that need to be deleted
             cleanUpWorkingDirectory(rootTreeName, expectedFiles);
     
             System.out.println("finished checkout");

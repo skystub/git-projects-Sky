@@ -10,12 +10,14 @@ public class BlobTester {
     private static Blob git = new Blob("/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git", "testFolder");
 
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
-        String gitPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
-        String content = "hello world and everyone in it!";
-        String correctHash = "88d9814d5c99271752f74fae7f363230a68e06b7"; // using online sha-1 hash
-        // blobValidation(gitPath, content, correctHash);
+        //use gitTester.java to test!
+
+        // String gitPath = "/Users/skystubbeman/Documents/HTCS_Projects/git-projects-Sky/git";
+        // String content = "hello world and everyone in it!";
+        // String correctHash = "88d9814d5c99271752f74fae7f363230a68e06b7"; // using online sha-1 hash
+        // // blobValidation(gitPath, content, correctHash);
        
-        directoryValidation(gitPath);
+        // directoryValidation(gitPath);
     }
 
 
